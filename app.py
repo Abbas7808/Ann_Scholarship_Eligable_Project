@@ -5,7 +5,9 @@ import tensorflow as tf
 import joblib
 import plotly.graph_objects as go
 
-# Page Configuration
+# -----------------------------------------------------------------------------
+# 1. Page Configuration & Custom CSS
+# -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="Scholarship AI",
     page_icon="🎓",
@@ -13,50 +15,78 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom Styling (Professional UI)
 st.markdown("""
 <style>
+    /* Import Google Font */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Outfit', sans-serif;
+    }
+    
     .stApp {
-        background-color: #f0f2f6;
+        background-color: #f8fafc; /* Very light slate */
     }
-    .main .block-container {
-        padding-top: 2rem;
-    }
+
+    /* Headers */
     h1, h2, h3 {
-        font-family: 'Helvetica Neue', sans-serif;
-        color: #1e293b;
+        color: #0f172a;
+        font-weight: 700;
     }
-    .metric-card {
+    
+    /* Metrics / Factors Card */
+    .factor-card {
         background-color: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        padding: 1rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         text-align: center;
+        border: 1px solid #e2e8f0;
         transition: transform 0.2s;
     }
-    .metric-card:hover {
+    .factor-card:hover {
         transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
-    .metric-value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #3b82f6;
+    .factor-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
     }
-    .metric-label {
+    .factor-label {
         color: #64748b;
-        font-size: 0.9rem;
+        font-size: 0.875rem;
+        font-weight: 500;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.05em;
     }
-    /* Sidebar styling */
+
+    /* Sidebar Improvements */
     section[data-testid="stSidebar"] {
-        background-color: #ffffff;
+        background-color: white;
         border-right: 1px solid #e2e8f0;
     }
+    .stButton > button {
+        background: linear-gradient(to right, #2563eb, #3b82f6);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .stButton > button:hover {
+        opacity: 0.9;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+    
 </style>
 """, unsafe_allow_html=True)
 
-# Load Artifacts
+# -----------------------------------------------------------------------------
+# 2. Logic & Data Loading
+# -----------------------------------------------------------------------------
 @st.cache_resource
 def load_artifacts():
     try:
@@ -69,259 +99,218 @@ def load_artifacts():
 
 model, scaler = load_artifacts()
 
-# Sidebar - Inputs
+# -----------------------------------------------------------------------------
+# 3. Sidebar (Settings & Inputs)
+# -----------------------------------------------------------------------------
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2997/2997385.png", width=50)
-    st.title("Student Profile")
-    # Load Dataset for Selection
-    df_existing = None
-    try:
-        df_existing = pd.read_csv('dataset.csv')
-    except:
-        st.warning("dataset.csv not found for selection mode.")
-
-    input_mode = st.radio("Input Mode", ["Manual Entry", "Select from Dataset"])
-
-    if input_mode == "Select from Dataset" and df_existing is not None:
-        max_idx = len(df_existing) - 1
-        row_idx = st.number_input(f"Select Record (0 - {max_idx})", 0, max_idx, 0)
-        selected_row = df_existing.iloc[row_idx]
+    st.image("https://cdn-icons-png.flaticon.com/512/2997/2997385.png", width=60)
+    st.markdown("### 🎓 Student Profile")
+    st.caption("Enter details to check eligibility.")
+    
+    # Defaults
+    def_gpa, def_att, def_cred, def_fin = 3.5, 85, 60, 20
+    
+    # Input Mode Selection
+    with st.expander("🛠️ Input Method", expanded=True):
+        input_mode = st.radio("Choose Mode", ["Manual Entry", "Select from Dataset"], label_visibility="collapsed")
         
-        # Display selected ground truth
-        st.info(f"Actual Status: {selected_row['scholarship']}")
+    if input_mode == "Select from Dataset":
+        try:
+            df_existing = pd.read_csv('dataset.csv')
+            max_idx = len(df_existing) - 1
+            row_idx = st.number_input(f"Record ID (0 - {max_idx})", 0, max_idx, 0)
+            selected_row = df_existing.iloc[row_idx]
+            
+            st.info(f"Actual Status: **{selected_row['scholarship']}**")
+            def_gpa = float(selected_row['gpa'])
+            def_att = int(selected_row['attendance'])
+            def_cred = int(selected_row['credit_hours'])
+            def_fin = int(selected_row['financial_score'])
+        except:
+            st.warning("dataset.csv not found.")
+
+    st.markdown("---")
+    
+    # Grouped Inputs
+    with st.expander("📚 Academic Performance", expanded=True):
+        gpa = st.slider("GPA (0.0 - 4.0)", 0.0, 4.0, def_gpa, 0.01)
+        credit_hours = st.slider("Credit Hours", 0, 130, def_cred)
         
-        # Overwrite defaults
-        def_gpa = float(selected_row['gpa'])
-        def_att = int(selected_row['attendance'])
-        def_cred = int(selected_row['credit_hours'])
-        def_fin = int(selected_row['financial_score'])
-    else:
-        def_gpa, def_att, def_cred, def_fin = 3.5, 85, 60, 20
+    with st.expander("👤 Behavioral & Financial", expanded=True):
+        attendance = st.slider("Attendance %", 0, 100, def_att)
+        financial_score = st.slider("Financial Score", 0, 100, def_fin, help="0 = High Need, 100 = Low Need")
 
-    st.divider()
-    
-    gpa = st.slider("GPA", 0.0, 4.0, def_gpa, 0.01)
-    attendance = st.slider("Attendance %", 0, 100, def_att)
-    credit_hours = st.slider("Completed Credit Hours", 0, 130, def_cred, help="Total credit hours completed so far.")
-    financial_score = st.slider("Financial Score", 0, 100, def_fin, help="Lower score implies higher financial need.")
-    
-    st.divider()
-    
-    analyze_btn = st.button("Run Analysis", type="primary", use_container_width=True)
-    st.caption("Powered by Neural Networks")
+    st.markdown("---")
+    analyze_btn = st.button("🚀 Analyze Eligibility", type="primary", use_container_width=True)
 
-# --- Main Dashboard ---
-st.title("🎓 Scholarship Eligibility Dashboard")
-st.markdown("Real-time AI assessment based on academic progress and performance.")
+# -----------------------------------------------------------------------------
+# 4. Main Content
+# -----------------------------------------------------------------------------
+st.title("Scholarship AI Predictor")
+st.markdown("### Intelligent Assessment System")
+st.markdown("This system utilizes an **Artificial Neural Network** to evaluate scholarship candidates based on academic merit, consistency, and financial need.")
 
-# Tabs for Mode Selection
-tab1, tab2 = st.tabs(["Search / Individual Profile", "Batch Processing"])
+# Tabs
+tab1, tab2 = st.tabs(["🔍 Individual Analysis", "📂 Batch Processing"])
 
+# --- TAB 1: Individual Analysis ---
 with tab1:
     if analyze_btn:
         if model and scaler:
             # Prediction Logic
-            # Hard Rule: Automatic Disqualification for Low GPA or Credits
+            # Hard Rules
             if gpa < 2.5 or credit_hours < 100:
                 prob = 0.0
                 is_eligible = False
+                reason = "Did not meet minimum threshold (GPA < 2.5 or Credits < 100)"
             else:
-                # Order must match training: gpa, attendance, financial_score, credit_hours
                 input_data = np.array([[gpa, attendance, financial_score, credit_hours]])
                 input_scaled = scaler.transform(input_data)
                 prob = model.predict(input_scaled)[0][0]
-                
                 is_eligible = prob > 0.5
+                reason = "AI Model Prediction"
+            
             confidence = prob if is_eligible else 1 - prob
             
-            # Determine Status Color/Text
-            status_color = "#10b981" if is_eligible else "#ef4444"
-            status_text = "ELIGIBLE" if is_eligible else "NOT ELIGIBLE"
+            # --- UI: Result Section ---
+            st.markdown("---")
             
-            # Columns for Layout
-            col1, col2 = st.columns([2, 1])
+            # Determine Styles
+            if is_eligible:
+                main_color = "#10b981" # Emerald 500
+                bg_color = "#ecfdf5"   # Emerald 50
+                icon = "✅"
+                title_text = "ELIGIBLE FOR SCHOLARSHIP"
+                desc_text = "This candidate meets the criteria based on the AI assessment."
+            else:
+                main_color = "#ef4444" # Red 500
+                bg_color = "#fef2f2"   # Red 50
+                icon = "❌"
+                title_text = "NOT ELIGIBLE"
+                desc_text = "This candidate does not meet the required criteria."
             
-            with col1:
-                # Gauge Chart
+            # 1. Main Result Card
+            cols = st.columns([1, 2, 1])
+            with cols[1]:
+                st.markdown(f"""
+                <div style="background-color: {bg_color}; border: 2px solid {main_color}; padding: 2rem; border-radius: 16px; text-align: center;">
+                    <div style="font-size: 4rem; margin-bottom: 0.5rem;">{icon}</div>
+                    <h2 style="color: {main_color}; margin: 0; font-size: 2rem;">{title_text}</h2>
+                    <p style="color: #475569; margin-top: 1rem; font-size: 1.1rem;">{desc_text}</p>
+                    <div style="margin-top: 1.5rem;">
+                        <span style="background-color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; color: {main_color}; border: 1px solid {main_color};">
+                            Confidence: {confidence:.1%}
+                        </span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 2. Factor Breakdown
+            st.markdown("### 📊 Factor Analysis")
+            f_col1, f_col2, f_col3, f_col4 = st.columns(4)
+            
+            def factor_html(label, value, color_condition):
+                color = "#10b981" if color_condition else "#f59e0b"
+                return f"""
+                <div class="factor-card">
+                    <div class="factor-value" style="color: {color};">{value}</div>
+                    <div class="factor-label">{label}</div>
+                </div>
+                """
+            
+            f_col1.markdown(factor_html("GPA", gpa, gpa >= 3.0), unsafe_allow_html=True)
+            f_col2.markdown(factor_html("Attendance", f"{attendance}%", attendance >= 75), unsafe_allow_html=True)
+            f_col3.markdown(factor_html("Credits", credit_hours, credit_hours >= 60), unsafe_allow_html=True)
+            f_col4.markdown(factor_html("Finance Score", financial_score, financial_score <= 40), unsafe_allow_html=True)
+
+            # 3. Probability Gauge (Optional visual)
+            with st.expander("View AI Probability Details"):
                 fig = go.Figure(go.Indicator(
                     mode = "gauge+number",
                     value = prob * 100,
-                    domain = {'x': [0, 1], 'y': [0, 1]},
-                    title = {'text': "Eligibility Probability", 'font': {'size': 24}},
-                    gauge = {
-                        'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-                        'bar': {'color': status_color},
-                        'bgcolor': "white",
-                        'borderwidth': 2,
-                        'bordercolor': "gray",
-                    'steps': [
-                        {'range': [0, 50], 'color': '#fee2e2'},
-                        {'range': [50, 100], 'color': '#d1fae5'}],
-                    'threshold': {
-                        'line': {'color': "black", 'width': 4},
-                        'thickness': 0.75,
-                        'value': 50}}))
-            
-            fig.update_layout(height=400, margin=dict(t=50,b=0,l=0,r=0), paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig, use_container_width=True)
-            
-        with col2:
-            st.markdown(f"""
-            <div style="background-color: {status_color}; padding: 2rem; border-radius: 10px; color: white; text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center;">
-                <h2 style="color: white; margin:0;">Result</h2>
-                <h1 style="font-size: 3rem; margin: 1rem 0; color: white;">{status_text}</h1>
-                <p style="opacity: 0.9;">Confidence: {confidence:.1%}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-        # Factors Analysis
-        st.subheader("Factor Breakdown")
-        c1, c2, c3, c4 = st.columns(4)
-        
-        def metric_html(label, value, is_good):
-            color = "#10b981" if is_good else "#f59e0b"
-            return f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: {color}">{value}</div>
-                <div class="metric-label">{label}</div>
-            </div>
-            """
-            
-        c1.markdown(metric_html("GPA", gpa, gpa >= 3.0), unsafe_allow_html=True)
-        c2.markdown(metric_html("Attendance", f"{attendance}%", attendance >= 75), unsafe_allow_html=True)
-        c3.markdown(metric_html("Credit Hours", credit_hours, credit_hours >= 60), unsafe_allow_html=True)
-        c4.markdown(metric_html("Financial Score", financial_score, financial_score <= 40), unsafe_allow_html=True)
+                    title = {'text': "Eligibility Probability"},
+                    gauge = {'axis': {'range': [None, 100]}, 'bar': {'color': main_color}}
+                ))
+                fig.update_layout(height=300)
+                st.plotly_chart(fig, use_container_width=True)
 
     else:
-        # Default Landing Info
-        st.info("👈 Please enter student details in the sidebar to begin, or select the 'Batch Processing' tab above.")
+        # Default State / Landing
+        st.info("👈 Please enter student details in the sidebar to begin analysis.")
         
-        st.markdown("### System Overview")
-        st.write("This scholarship eligibility system uses an **Artificial Neural Network (ANN)** to evaluate candidates based on holistic performance metrics. It is designed to assist administrative decision-making with data-driven insights.")
-        
-        st.divider()
-        
-        st.markdown("#### 📊 Input Parameters Guide")
-        
+        # Methodology Section
+        st.markdown("#### How it works")
         col1, col2 = st.columns(2)
-        
         with col1:
-             with st.expander("Academic Performance", expanded=True):
-                st.markdown("""
-                **1. GPA (Grade Point Average)**
-                - **Range:** 0.0 - 4.0
-                - **Impact:** High (40% weight)
-                - **Rule:** Minimum 2.5 required for eligibility.
-                
-                **2. Credit Hours**
-                - **Range:** 0 - 130
-                - **Impact:** High (30% weight)
-                - **Rule:** Minimum 100 hours required (Senior standing).
-                """)
-        
+             st.markdown("""
+             **1. Academic Screening**
+             - **GPA:** Must be roughly above 2.5.
+             - **Credit Hours:** Must be a Senior (100+ hours).
+             """)
         with col2:
-            with st.expander("Behavioral & Financial", expanded=True):
-                st.markdown("""
-                **3. Attendance**
-                - **Range:** 0% - 100%
-                - **Impact:** Moderate (20% weight)
-                - **significance:** Indicates consistency and dedication.
-                
-                **4. Financial Score**
-                - **Range:** 0 - 100
-                - **Impact:** Need-based (10% weight)
-                - **Note:** Lower score = Higher Financial Need.
-                """)
-                
-        st.info("ℹ️ **Note:** The system combines these factors using a non-linear model to capture complex relationships, such as high-need students excelling despite lower attendance.")
+             st.markdown("""
+             **2. Holistic Review (AI)**
+             - **Attendance:** Shows dedication.
+             - **Financial Need:** Prioritized (Lower score = higher need).
+             """)
 
+# --- TAB 2: Batch Processing ---
 with tab2:
-    st.header("Batch Eligibility Check")
-    st.markdown("Upload a CSV file to check eligibility for multiple students at once.")
+    st.header("📂 Batch File Processing")
+    st.markdown("Upload a CSV file containing student records to process them in bulk.")
     
-    uploaded_file = st.file_uploader("Upload Student Data (CSV)", type=['csv'])
+    uploaded_file = st.file_uploader("Drop CSV file here", type=['csv'])
     
     if uploaded_file is not None:
         try:
             batch_df = pd.read_csv(uploaded_file)
-            st.success(f"Loaded {len(batch_df)} records successfully.")
+            st.success(f"Successfully loaded {len(batch_df)} records.")
             
-            if st.button("Process Batch"):
-                with st.spinner("Analyzing records..."):
-                    # 1. Hard Rules
-                    # Rule: Credit Hours < 100 OR GPA < 2.5 => Not Eligible
-                    batch_df['predicted_eligibility'] = 'Pending'
-                    batch_df['reason'] = ''
+            if st.button("Start Batch Analysis"):
+                with st.spinner("Processing records..."):
+                    # Logic
+                    batch_df['Status'] = 'Pending'
+                    batch_df['Note'] = ''
                     
+                    # 1. Hard Rules
                     mask_fail = (batch_df['credit_hours'] < 100) | (batch_df['gpa'] < 2.5)
-                    batch_df.loc[mask_fail, 'predicted_eligibility'] = 'Not Eligible'
-                    batch_df.loc[mask_fail, 'reason'] = 'Does not meet minimum requirements (GPA < 2.5 or Credits < 100)'
+                    batch_df.loc[mask_fail, 'Status'] = 'Not Eligible'
+                    batch_df.loc[mask_fail, 'Note'] = 'Below Thresholds'
                     
                     # 2. AI Model
                     mask_ai = ~mask_fail
                     candidates = batch_df.loc[mask_ai]
                     
                     if len(candidates) > 0:
-                        # Prepare features: gpa, attendance, financial_score, credit_hours
-                        features = candidates[['gpa', 'attendance', 'financial_score', 'credit_hours']]
-                        features_scaled = scaler.transform(features)
-                        
-                        probs = model.predict(features_scaled, verbose=0)
+                        feats = candidates[['gpa', 'attendance', 'financial_score', 'credit_hours']]
+                        feats_scaled = scaler.transform(feats)
+                        probs = model.predict(feats_scaled, verbose=0)
                         preds = (probs > 0.5).astype(int).flatten()
                         
                         labels = np.where(preds == 1, 'Eligible', 'Not Eligible')
-                        
-                        batch_df.loc[mask_ai, 'predicted_eligibility'] = labels
-                        batch_df.loc[mask_ai, 'reason'] = 'Evaluated by AI Model'
+                        batch_df.loc[mask_ai, 'Status'] = labels
+                        batch_df.loc[mask_ai, 'Note'] = 'AI Evaluated'
                     
-                    # 3. Results
-                    counts = batch_df['predicted_eligibility'].value_counts()
-                    
-                    # Display Stats
-                    st.divider()
+                    # Display Simple Stats
+                    st.markdown("### Results Summary")
                     col_a, col_b = st.columns(2)
-                    col_a.metric("Total Processed", len(batch_df))
-                    col_a.metric("Eligible Candidates", counts.get('Eligible', 0))
-                    col_b.metric("Not Eligible", counts.get('Not Eligible', 0))
+                    elig_count = len(batch_df[batch_df['Status']=='Eligible'])
+                    col_a.metric("Eligible", elig_count)
+                    col_b.metric("Not Eligible", len(batch_df) - elig_count)
                     
-                    # Visual breakdown
-                    st.subheader("Eligibility Breakdown")
-                    st.bar_chart(counts)
+                    st.dataframe(batch_df.head(20))
                     
-                    # 4. Download
-                    csv = batch_df.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="Download Results CSV",
-                        data=csv,
-                        file_name='batch_eligibility_results.csv',
-                        mime='text/csv',
-                    )
-                    
-                    st.dataframe(batch_df.head(50))
+                    # Download
+                    csv_data = batch_df.to_csv(index=False).encode('utf-8')
+                    st.download_button("Download Report", csv_data, "scholarship_results.csv", "text/csv")
                     
         except Exception as e:
-            st.error(f"Error processing file: {e}")
+            st.error(f"Error: {e}")
 
-
-    st.divider()
-
-    # Footer
-    st.markdown("""
-    <div style="text-align: center; margin-top: 2rem; padding: 2rem; background-color: white; border-radius: 10px; border: 1px solid #e2e8f0;">
-        <h4 style="color: #1e293b; margin-bottom: 0.5rem; font-family: 'Helvetica Neue', sans-serif;">Scholarship AI System</h4>
-        <p style="color: #64748b; margin-bottom: 1rem; font-size: 0.9rem;">
-            Empowering education through transparent and automated evaluation.
-        </p>
-        <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 1rem;">
-            &copy; 2026 Scholarship AI. All rights reserved.
-        </p>
-        <div style="display: flex; justify-content: center; gap: 1.5rem; font-size: 0.9rem;">
-            <span style="color: #64748b;">Presented by: <strong style="color: #3b82f6;">[Munim Abbas]</strong></span>
-            <span style="color: #cbd5e1;">|</span>
-            <a href="#" style="color: #64748b; text-decoration: none; transition: color 0.3s;">Project Details</a>
-            <span style="color: #cbd5e1;">|</span>
-            <a href="#" style="color: #64748b; text-decoration: none; transition: color 0.3s;">GitHub</a>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
+# Footer
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #94a3b8; font-size: 0.8rem;">
+    Scholarship AI System &copy; 2026 | Developed by <strong>Munim Abbas</strong>
+</div>
+""", unsafe_allow_html=True)
