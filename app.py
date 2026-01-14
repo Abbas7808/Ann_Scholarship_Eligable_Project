@@ -110,46 +110,50 @@ with st.sidebar:
     analyze_btn = st.button("Run Analysis", type="primary", use_container_width=True)
     st.caption("Powered by Neural Networks")
 
-# Main Dashboard
+# --- Main Dashboard ---
 st.title("🎓 Scholarship Eligibility Dashboard")
 st.markdown("Real-time AI assessment based on academic progress and performance.")
 
-if analyze_btn:
-    if model and scaler:
-        # Prediction Logic
-        # Hard Rule: Automatic Disqualification for Low GPA or Credits
-        if gpa < 2.5 or credit_hours < 100:
-            prob = 0.0
-            is_eligible = False
-        else:
-            # Order must match training: gpa, attendance, financial_score, credit_hours
-            input_data = np.array([[gpa, attendance, financial_score, credit_hours]])
-            input_scaled = scaler.transform(input_data)
-            prob = model.predict(input_scaled)[0][0]
+# Tabs for Mode Selection
+tab1, tab2 = st.tabs(["Search / Individual Profile", "Batch Processing"])
+
+with tab1:
+    if analyze_btn:
+        if model and scaler:
+            # Prediction Logic
+            # Hard Rule: Automatic Disqualification for Low GPA or Credits
+            if gpa < 2.5 or credit_hours < 100:
+                prob = 0.0
+                is_eligible = False
+            else:
+                # Order must match training: gpa, attendance, financial_score, credit_hours
+                input_data = np.array([[gpa, attendance, financial_score, credit_hours]])
+                input_scaled = scaler.transform(input_data)
+                prob = model.predict(input_scaled)[0][0]
+                
+                is_eligible = prob > 0.5
+            confidence = prob if is_eligible else 1 - prob
             
-            is_eligible = prob > 0.5
-        confidence = prob if is_eligible else 1 - prob
-        
-        # Determine Status Color/Text
-        status_color = "#10b981" if is_eligible else "#ef4444"
-        status_text = "ELIGIBLE" if is_eligible else "NOT ELIGIBLE"
-        
-        # Columns for Layout
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            # Gauge Chart
-            fig = go.Figure(go.Indicator(
-                mode = "gauge+number",
-                value = prob * 100,
-                domain = {'x': [0, 1], 'y': [0, 1]},
-                title = {'text': "Eligibility Probability", 'font': {'size': 24}},
-                gauge = {
-                    'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-                    'bar': {'color': status_color},
-                    'bgcolor': "white",
-                    'borderwidth': 2,
-                    'bordercolor': "gray",
+            # Determine Status Color/Text
+            status_color = "#10b981" if is_eligible else "#ef4444"
+            status_text = "ELIGIBLE" if is_eligible else "NOT ELIGIBLE"
+            
+            # Columns for Layout
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                # Gauge Chart
+                fig = go.Figure(go.Indicator(
+                    mode = "gauge+number",
+                    value = prob * 100,
+                    domain = {'x': [0, 1], 'y': [0, 1]},
+                    title = {'text': "Eligibility Probability", 'font': {'size': 24}},
+                    gauge = {
+                        'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                        'bar': {'color': status_color},
+                        'bgcolor': "white",
+                        'borderwidth': 2,
+                        'bordercolor': "gray",
                     'steps': [
                         {'range': [0, 50], 'color': '#fee2e2'},
                         {'range': [50, 100], 'color': '#d1fae5'}],
@@ -188,27 +192,116 @@ if analyze_btn:
         c3.markdown(metric_html("Credit Hours", credit_hours, credit_hours >= 60), unsafe_allow_html=True)
         c4.markdown(metric_html("Financial Score", financial_score, financial_score <= 40), unsafe_allow_html=True)
 
-else:
-    # Default Landing State
-    st.info("👈 Please enter student details in the sidebar and click 'Run Analysis'")
+    else:
+        # Default Landing Info
+        st.info("👈 Please enter student details in the sidebar to begin, or select the 'Batch Processing' tab above.")
+        
+        st.markdown("### System Overview")
+        st.write("This scholarship eligibility system uses an **Artificial Neural Network (ANN)** to evaluate candidates based on holistic performance metrics. It is designed to assist administrative decision-making with data-driven insights.")
+        
+        st.divider()
+        
+        st.markdown("#### 📊 Input Parameters Guide")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+             with st.expander("Academic Performance", expanded=True):
+                st.markdown("""
+                **1. GPA (Grade Point Average)**
+                - **Range:** 0.0 - 4.0
+                - **Impact:** High (40% weight)
+                - **Rule:** Minimum 2.5 required for eligibility.
+                
+                **2. Credit Hours**
+                - **Range:** 0 - 130
+                - **Impact:** High (30% weight)
+                - **Rule:** Minimum 100 hours required (Senior standing).
+                """)
+        
+        with col2:
+            with st.expander("Behavioral & Financial", expanded=True):
+                st.markdown("""
+                **3. Attendance**
+                - **Range:** 0% - 100%
+                - **Impact:** Moderate (20% weight)
+                - **significance:** Indicates consistency and dedication.
+                
+                **4. Financial Score**
+                - **Range:** 0 - 100
+                - **Impact:** Need-based (10% weight)
+                - **Note:** Lower score = Higher Financial Need.
+                """)
+                
+        st.info("ℹ️ **Note:** The system combines these factors using a non-linear model to capture complex relationships, such as high-need students excelling despite lower attendance.")
+
+with tab2:
+    st.header("Batch Eligibility Check")
+    st.markdown("Upload a CSV file to check eligibility for multiple students at once.")
     
-    # Show some dummy stats or info
-    st.markdown("### Model Information")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("""
-        **Input Parameters:**
-        - **GPA**: 0.0 - 4.0
-        - **Attendance**: 0% - 100%
-        - **Financial Score**: 0 - 100 (Lower = Higher Need)
-        - **Credit Hours**: 0 - 130
-        """)
-    with c2:
-        st.markdown("""
-        **Prediction Target:**
-        - **Scholarship Eligibility** (Binary Classification)
-        - Trained on **2000+** synthetic student records.
-        """)
+    uploaded_file = st.file_uploader("Upload Student Data (CSV)", type=['csv'])
+    
+    if uploaded_file is not None:
+        try:
+            batch_df = pd.read_csv(uploaded_file)
+            st.success(f"Loaded {len(batch_df)} records successfully.")
+            
+            if st.button("Process Batch"):
+                with st.spinner("Analyzing records..."):
+                    # 1. Hard Rules
+                    # Rule: Credit Hours < 100 OR GPA < 2.5 => Not Eligible
+                    batch_df['predicted_eligibility'] = 'Pending'
+                    batch_df['reason'] = ''
+                    
+                    mask_fail = (batch_df['credit_hours'] < 100) | (batch_df['gpa'] < 2.5)
+                    batch_df.loc[mask_fail, 'predicted_eligibility'] = 'Not Eligible'
+                    batch_df.loc[mask_fail, 'reason'] = 'Does not meet minimum requirements (GPA < 2.5 or Credits < 100)'
+                    
+                    # 2. AI Model
+                    mask_ai = ~mask_fail
+                    candidates = batch_df.loc[mask_ai]
+                    
+                    if len(candidates) > 0:
+                        # Prepare features: gpa, attendance, financial_score, credit_hours
+                        features = candidates[['gpa', 'attendance', 'financial_score', 'credit_hours']]
+                        features_scaled = scaler.transform(features)
+                        
+                        probs = model.predict(features_scaled, verbose=0)
+                        preds = (probs > 0.5).astype(int).flatten()
+                        
+                        labels = np.where(preds == 1, 'Eligible', 'Not Eligible')
+                        
+                        batch_df.loc[mask_ai, 'predicted_eligibility'] = labels
+                        batch_df.loc[mask_ai, 'reason'] = 'Evaluated by AI Model'
+                    
+                    # 3. Results
+                    counts = batch_df['predicted_eligibility'].value_counts()
+                    
+                    # Display Stats
+                    st.divider()
+                    col_a, col_b = st.columns(2)
+                    col_a.metric("Total Processed", len(batch_df))
+                    col_a.metric("Eligible Candidates", counts.get('Eligible', 0))
+                    col_b.metric("Not Eligible", counts.get('Not Eligible', 0))
+                    
+                    # Visual breakdown
+                    st.subheader("Eligibility Breakdown")
+                    st.bar_chart(counts)
+                    
+                    # 4. Download
+                    csv = batch_df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="Download Results CSV",
+                        data=csv,
+                        file_name='batch_eligibility_results.csv',
+                        mime='text/csv',
+                    )
+                    
+                    st.dataframe(batch_df.head(50))
+                    
+        except Exception as e:
+            st.error(f"Error processing file: {e}")
+
 
     st.divider()
 
