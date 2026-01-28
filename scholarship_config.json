@@ -1,0 +1,39 @@
+{
+    "Merit Based Scholarship": {
+        "description": "Designed for students who have demonstrated excellence in their academic pursuits. Requires a high GPA and consistent performance.",
+        "min_gpa": 3.5,
+        "min_attendance": 85,
+        "min_credit_hours": 30,
+        "max_financial_score": 100,
+        "required_documents": [
+            "Official Transcript / Grade Sheet",
+            "Two Letters of Recommendation",
+            "Personal Statement"
+        ]
+    },
+    "Need Based Financial Aid": {
+        "description": "Supports students who require financial assistance to continue their education. Focuses on financial background rather than just grades.",
+        "min_gpa": 2.5,
+        "min_attendance": 75,
+        "min_credit_hours": 10,
+        "max_financial_score": 40,
+        "required_documents": [
+            "Electricity Bill (Last 3 months)",
+            "Father/Guardian Salary Slip",
+            "Rent Agreement (if applicable)",
+            "Affidavit of Financial Hardship"
+        ]
+    },
+    "Sports Excellence Scholarship": {
+        "description": "For students who represent the institute in regional or national sports competitions.",
+        "min_gpa": 2.2,
+        "min_attendance": 60,
+        "min_credit_hours": 15,
+        "max_financial_score": 100,
+        "required_documents": [
+            "Sports Certificates (National/Regional)",
+            "Coach Recommendation Letter",
+            "Medical Fitness Certificate"
+        ]
+    }
+}
