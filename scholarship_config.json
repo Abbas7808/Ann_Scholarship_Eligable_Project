@@ -35,5 +35,18 @@
             "Coach Recommendation Letter",
             "Medical Fitness Certificate"
         ]
+    },
+    "Fully funded Scholarship": {
+        "description": "jfjsj",
+        "min_gpa": 2.5,
+        "min_attendance": 75,
+        "min_credit_hours": 30,
+        "max_financial_score": 100,
+        "required_documents": [
+            "National ID",
+            "Student Card",
+            "transcript",
+            "domicle"
+        ]
     }
 }
